@@ -120,11 +120,35 @@ object JavaScriptBridge {
     """.trimIndent()
     
     /**
+     * Shared JS helper that finds the active fail button.
+     *
+     * Gripper sessions on /timer use `button.btn-fail-prominent`. The bodyweight
+     * training player (/bodyweight-training/play) renders its own button, styled
+     * with Tailwind classes only and labelled "Fail Rep" or "Came Off", which only
+     * exists while a hold is running. It is matched by label, and only on that
+     * route, so no other button on the site can be clicked by mistake.
+     */
+    private const val FIND_FAIL_BUTTON_FN = """
+        function __ggcFindFailButton() {
+            const prominent = document.querySelector('button.btn-fail-prominent');
+            if (prominent) return prominent;
+            if (location.pathname.indexOf('/bodyweight-training') !== 0) return null;
+            const labels = ['Fail Rep', 'Came Off'];
+            const buttons = document.querySelectorAll('button');
+            for (let i = 0; i < buttons.length; i++) {
+                if (labels.indexOf(buttons[i].textContent.trim()) !== -1) return buttons[i];
+            }
+            return null;
+        }
+    """
+
+    /**
      * Click the fail button
      */
     val clickFailButton = """
         (function() {
-            const button = document.querySelector('button.btn-fail-prominent');
+            $FIND_FAIL_BUTTON_FN
+            const button = __ggcFindFailButton();
             if (button && !button.disabled) {
                 button.click();
             }
@@ -148,8 +172,9 @@ object JavaScriptBridge {
      */
     val checkFailButtonState = """
         (function() {
-            const button = document.querySelector('button.btn-fail-prominent');
-            const enabled = button && !button.disabled;
+            $FIND_FAIL_BUTTON_FN
+            const button = __ggcFindFailButton();
+            const enabled = !!button && !button.disabled;
             Android.onButtonStateChanged(enabled);
         })();
     """.trimIndent()
@@ -167,8 +192,10 @@ object JavaScriptBridge {
             }
             window.__gripGainsCompanionButtonObserverInstalled = true;
 
+            $FIND_FAIL_BUTTON_FN
+
             function sendButtonState() {
-                const button = document.querySelector('button.btn-fail-prominent');
+                const button = __ggcFindFailButton();
                 Android.onButtonStateChanged(!!button && !button.disabled);
             }
 
