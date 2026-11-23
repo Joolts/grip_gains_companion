@@ -485,23 +485,27 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        // Update handler with target weight from web
+        // Update handler with the effective target weight (website or manual).
+        // The manual target must reach the handler too: percentage-based grip/fail
+        // thresholds are derived from it, e.g. bodyweight entered as manual target
+        // for hangs where the website shows no weight.
         lifecycleScope.launch {
-            webViewBridge.targetWeight
-                .combine(debugForceDataSource.isRunning) { weight, simulated -> weight to simulated }
-                .collect { (weight, simulated) ->
-                    if (simulated) {
-                        progressorHandler.targetWeight = debugForceDataSource.targetWeightKg
-                        return@collect
-                    }
-
-                    val enableTargetWeight = preferencesRepository.enableTargetWeight.first()
-                    val useManualTarget = preferencesRepository.useManualTarget.first()
-
-                    if (enableTargetWeight && !useManualTarget) {
-                        progressorHandler.targetWeight = weight
-                    }
+            combine(
+                webViewBridge.targetWeight,
+                debugForceDataSource.isRunning,
+                preferencesRepository.enableTargetWeight,
+                preferencesRepository.useManualTarget,
+                preferencesRepository.manualTargetWeight
+            ) { weight, simulated, enableTargetWeight, useManualTarget, manualTargetWeight ->
+                when {
+                    simulated -> debugForceDataSource.targetWeightKg
+                    !enableTargetWeight -> null
+                    useManualTarget -> manualTargetWeight
+                    else -> weight
                 }
+            }.collect { target ->
+                progressorHandler.targetWeight = target
+            }
         }
 
         // Timer countdown sound for pre-start and rest timers.
