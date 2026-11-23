@@ -9,7 +9,7 @@ android {
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "app.grip_gains_auto"
+        applicationId = "app.grip_gains_auto.bw"
         minSdk = 29
         targetSdk = 36
         versionCode = 12
